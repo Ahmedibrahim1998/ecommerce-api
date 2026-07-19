@@ -1,6 +1,3 @@
-# Reference material from another project — keep local, never commit
-/Docs1
-
 # Environment & secrets
 .env
 .env.backup
