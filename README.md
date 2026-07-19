@@ -1,44 +1,99 @@
 # 🛒 E-commerce Store API
 
-> Backend RESTful API لمتجر إلكتروني — منتجات، أقسام، كارت، أوردرات، عملاء، وإدارة مخزون تمنع البيع الزائد.
-> **API only** (من غير frontend) · مبني على **Laravel**.
+A backend **RESTful API** for an e-commerce store — products, categories, shopping cart, orders, customers, and an inventory system that prevents overselling under concurrent load.
 
-الرسمة تحت بتتعرض **مرسومة تلقائيًا على GitHub** (GitHub بيدعم Mermaid داخل الـ Markdown).
+**API only** (no frontend) · Built with **Laravel**.
+
+![Status](https://img.shields.io/badge/status-design%20phase-blue)
+![Laravel](https://img.shields.io/badge/Laravel-11-red)
+![PHP](https://img.shields.io/badge/PHP-8.3-777bb4)
+![Architecture](https://img.shields.io/badge/architecture-modular%20layered-success)
+
+> The diagram below renders automatically on GitHub (native Mermaid support). This README is the entry point; deep-dive documents live in [`docs/`](docs/).
 
 ---
 
-## 📦 Tech Stack
+## 📖 Documentation
 
-| الطبقة | التقنية |
-|--------|---------|
+| # | Document | What's inside |
+|---|----------|---------------|
+| 01 | [Requirements Analysis](docs/01-requirements.md) | Functional & non-functional requirements, actors, use cases, business rules, scope |
+| 02 | [Architecture](docs/02-architecture.md) | Architecture decision (MVC vs DDD vs Hexagonal), layers, folder structure, patterns, **code** |
+| 03 | [Data Model](docs/03-data-model.md) | ERD, entities, relationships, keys, constraints, indexes |
+| 04 | [API Reference](docs/04-api-reference.md) | Endpoints, auth, conventions, error format, pagination |
+| 05 | [Inventory & Concurrency](docs/05-inventory-and-concurrency.md) | Stock model, no-overselling strategy, locking, **code** |
+| 06 | [Implementation Plan](docs/06-implementation-plan.md) | Milestones, deliverables, testing strategy |
+
+An interactive (offline) diagram is also available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html).
+
+---
+
+## ✨ Core Features
+
+- **Catalog** — hierarchical categories, products with images, search / filter / pagination.
+- **Customers** — token-based authentication, profiles, shipping addresses, role-based access (`customer` / `admin`).
+- **Cart** — one active cart per user; add, update, remove, clear items.
+- **Checkout & Orders** — convert a cart into an order with price snapshots and a full status lifecycle.
+- **Inventory** — atomic stock deduction, overselling protection, out-of-stock & reorder detection, full stock-movement audit trail.
+- **Payments** — pluggable payment records ready to connect to a gateway.
+
+---
+
+## 🧰 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
 | Framework | Laravel 11+ |
-| Auth | Laravel Sanctum (token-based) |
-| Authorization | Policies + Gates — roles: `admin` / `customer` |
-| Database | MySQL 8 / PostgreSQL |
-| Cache / Locks / Queue | Redis |
-| API | RESTful, versioned تحت `/api/v1` |
-| Docs | OpenAPI (Swagger) |
+| Language | PHP 8.3+ |
+| Authentication | Laravel Sanctum (bearer tokens) |
+| Authorization | Policies + Gates (`customer` / `admin`) |
+| Database | MySQL 8 / PostgreSQL 15 |
+| Cache · Queue · Locks | Redis |
+| API Docs | OpenAPI (Swagger) |
+| Testing | Pest / PHPUnit (Feature + Unit) |
 
 ---
 
-## 🗂️ Data Model — ERD
+## 🏛️ Architecture at a Glance
+
+This project uses a **Modular, Layered architecture** (a pragmatic, DDD-influenced approach) rather than plain MVC or full Hexagonal. Business logic lives in **Services / Actions**, data access behind **Repositories**, and HTTP concerns stay in thin controllers. See [Architecture](docs/02-architecture.md) for the full decision record and rationale.
+
+```
+HTTP Request
+    │
+    ▼
+Route ─► Controller ─► Form Request (validation)
+                          │
+                          ▼
+                    Service / Action  ──►  Domain Events ──► Queue (async)
+                          │
+                          ▼
+                    Repository ─► Eloquent Model ─► Database
+                          │
+                          ▼
+                    API Resource (JSON response)
+```
+
+---
+
+## 🗂️ Data Model (ERD)
 
 ```mermaid
 erDiagram
-    USERS ||--o{ ADDRESSES : "له"
-    USERS ||--|| CARTS : "يملك"
-    USERS ||--o{ ORDERS : "يعمل"
-    ADDRESSES ||--o{ ORDERS : "عنوان شحن"
-    CATEGORIES ||--o{ CATEGORIES : "أب / فرع"
-    CATEGORIES ||--o{ PRODUCTS : "يحتوي"
-    PRODUCTS ||--o{ PRODUCT_IMAGES : "صور"
-    PRODUCTS ||--o{ CART_ITEMS : "داخل"
-    PRODUCTS ||--o{ ORDER_ITEMS : "داخل"
-    PRODUCTS ||--o{ STOCK_MOVEMENTS : "حركة"
-    CARTS ||--o{ CART_ITEMS : "يحتوي"
-    ORDERS ||--o{ ORDER_ITEMS : "يحتوي"
-    ORDERS ||--o{ PAYMENTS : "دفع"
-    ORDERS ||--o{ STOCK_MOVEMENTS : "يسبّب"
+    USERS ||--o{ ADDRESSES : has
+    USERS ||--|| CARTS : owns
+    USERS ||--o{ ORDERS : places
+    ADDRESSES ||--o{ ORDERS : "ships to"
+    CATEGORIES ||--o{ CATEGORIES : "parent of"
+    CATEGORIES ||--o{ PRODUCTS : contains
+    PRODUCTS ||--o{ PRODUCT_IMAGES : has
+    PRODUCTS ||--o{ CART_ITEMS : "listed in"
+    PRODUCTS ||--o{ ORDER_ITEMS : "listed in"
+    PRODUCTS ||--o{ STOCK_MOVEMENTS : logs
+    CARTS ||--o{ CART_ITEMS : contains
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    ORDERS ||--o{ PAYMENTS : "paid by"
+    ORDERS ||--o{ STOCK_MOVEMENTS : triggers
 
     USERS {
         bigint id PK
@@ -46,7 +101,6 @@ erDiagram
         string email UK
         string password
         enum role
-        timestamp created_at
     }
     ADDRESSES {
         bigint id PK
@@ -79,12 +133,10 @@ erDiagram
         bigint product_id FK
         string url
         boolean is_primary
-        int sort_order
     }
     CARTS {
         bigint id PK
         bigint user_id FK "unique"
-        timestamp updated_at
     }
     CART_ITEMS {
         bigint id PK
@@ -98,10 +150,7 @@ erDiagram
         bigint shipping_address_id FK
         string order_number UK
         enum status
-        decimal subtotal
-        decimal shipping_cost
         decimal total
-        timestamp created_at
     }
     ORDER_ITEMS {
         bigint id PK
@@ -110,13 +159,11 @@ erDiagram
         string product_name_snapshot
         decimal unit_price
         int quantity
-        decimal line_total
     }
     PAYMENTS {
         bigint id PK
         bigint order_id FK
         string provider
-        string reference
         enum status
         decimal amount
     }
@@ -127,44 +174,25 @@ erDiagram
         enum type
         int quantity_change
         int resulting_quantity
-        timestamp created_at
     }
 ```
 
----
-
-## 🔗 العلاقات (Relationships)
-
-| من | العلاقة | إلى | Foreign key | On delete |
-|----|:-------:|-----|-------------|-----------|
-| users | 1 — N | addresses | `addresses.user_id` | CASCADE |
-| users | 1 — 1 | carts | `carts.user_id` (UK) | CASCADE |
-| users | 1 — N | orders | `orders.user_id` | RESTRICT |
-| addresses | 1 — N | orders | `orders.shipping_address_id` | RESTRICT |
-| categories | 1 — N | categories | `categories.parent_id` (nullable) | SET NULL |
-| categories | 1 — N | products | `products.category_id` | RESTRICT |
-| products | 1 — N | product_images | `product_images.product_id` | CASCADE |
-| products | 1 — N | cart_items | `cart_items.product_id` | CASCADE |
-| products | 1 — N | order_items | `order_items.product_id` (nullable) | SET NULL |
-| products | 1 — N | stock_movements | `stock_movements.product_id` | RESTRICT |
-| carts | 1 — N | cart_items | `cart_items.cart_id` | CASCADE |
-| orders | 1 — N | order_items | `order_items.order_id` | CASCADE |
-| orders | 1 — N | payments | `payments.order_id` | CASCADE |
-| orders | 1 — N | stock_movements | `stock_movements.order_id` (nullable) | SET NULL |
-
-**قيود إضافية:** `cart_items` عليها unique على `(cart_id, product_id)` — نفس المنتج مايتكررش في الكارت.
+Full breakdown, relationship table, and constraints: [Data Model](docs/03-data-model.md).
 
 ---
 
-## ⭐ أهم قرارات التصميم (للنقاش مع العميل)
+## ⭐ Key Design Decisions
 
-- **إدارة المخزون:** الخصم من الكمية بيحصل **وقت تأكيد الأوردر** (مش وقت الإضافة للكارت)، جوه `DB::transaction` مع `lockForUpdate()` لمنع الـ **overselling** لو يوزرين طلبوا آخر قطعة في نفس اللحظة.
-- **حالات المنتج:** `stock_quantity = 0` → out of stock · `stock_quantity ≤ low_stock_threshold` → محتاج reorder (يبعت alert للأدمن).
-- **الإلغاء:** أوردر يتلغى قبل الشحن → ترجيع الكمية (restock) وتسجيل الحركة في `stock_movements`.
-- **Snapshot:** `order_items` بتخزّن السعر والاسم وقت البيع — الأوردر القديم يفضل صحيح حتى لو المنتج اتغيّر أو اتشال.
-- **الفلوس:** `decimal(10,2)` مش `float`.
-- **Idempotency key** على `POST /api/v1/orders` لمنع الأوردر المكرر.
-- **Soft delete:** المنتجات والأقسام بتتخفي بـ `is_active` بدل الحذف الفعلي.
+| Decision | Choice |
+|----------|--------|
+| **Overselling protection** | Stock is decremented **at checkout**, inside a DB transaction with `SELECT … FOR UPDATE` (pessimistic locking) |
+| **Price integrity** | `order_items` store a **snapshot** of price & name at purchase time |
+| **Money** | `decimal(12,2)` wrapped by a `Money` value object — never floats |
+| **Idempotency** | Idempotency key on `POST /orders` to prevent duplicate orders |
+| **Soft deletion** | Products & categories hidden via `is_active`, not hard-deleted |
+| **Audit** | Every stock change recorded in `stock_movements` |
+
+See [Inventory & Concurrency](docs/05-inventory-and-concurrency.md) for the deep dive.
 
 ---
 
@@ -177,40 +205,63 @@ sequenceDiagram
     participant API as Orders API
     participant DB as Database
     participant Q as Queue
-    C->>API: POST /api/v1/orders
+    C->>API: POST /api/v1/orders (Idempotency-Key)
     API->>DB: BEGIN TRANSACTION
-    loop لكل item في الكارت
+    loop each cart item
         API->>DB: SELECT product FOR UPDATE
-        alt الكمية مش كفاية
+        alt insufficient stock
             API-->>C: 422 Insufficient stock
-        else متاحة
-            API->>DB: decrement + log stock_movement
+        else available
+            API->>DB: decrement stock + log movement
         end
     end
     API->>DB: create order + items (snapshots)
     API->>DB: clear cart
     API->>DB: COMMIT
-    API->>Q: OrderPlaced + LowStockCheck
+    API->>Q: dispatch OrderPlaced + LowStockCheck
     API-->>C: 201 Created
 ```
 
 ---
 
-## 📚 توثيق إضافي
+## 🚀 Getting Started
 
-| الملف | المحتوى |
-|-------|---------|
-| [docs/ecommerce_data_model_erd.html](docs/ecommerce_data_model_erd.html) | نسخة ERD تفاعلية — نزّلها وافتحها في المتصفح (GitHub بيعرض ملفات HTML كـ source) |
+> The application code is not implemented yet — the project is in the **design phase**. These are the intended setup steps.
 
-> 💡 الرسمة الأساسية للنقاش موجودة فوق مباشرة في الـ README — بترسمها GitHub تلقائيًا.
+```bash
+# 1. Clone
+git clone git@github.com:Ahmedibrahim1998/ecommerce-api.git
+cd ecommerce-api
+
+# 2. Install dependencies
+composer install
+
+# 3. Environment
+cp .env.example .env
+php artisan key:generate
+
+# 4. Configure DB & Redis in .env, then migrate + seed
+php artisan migrate --seed
+
+# 5. Run
+php artisan serve
+```
 
 ---
 
 ## 🗺️ Roadmap
 
-1. **Setup + Auth** — Laravel + Sanctum + register / login / me
-2. **Catalog** — Categories + Products CRUD + listing / فلترة
-3. **Cart** — cart + cart items + soft stock check
-4. **Checkout + Inventory** ⭐ — Orders + transaction/locking + stock_movements
-5. **Admin** — إدارة المنتجات، low-stock، حالة الأوردرات
-6. **Polish** — payments، events/queue، alerts، API docs، tests
+1. **Setup & Auth** — Laravel, Sanctum, register / login / me
+2. **Catalog** — categories & products (CRUD, listing, filtering)
+3. **Cart** — cart & cart items with soft stock checks
+4. **Checkout & Inventory** ⭐ — orders, transactional locking, stock movements
+5. **Admin** — product management, low-stock, order status
+6. **Polish** — payments, events/queues, alerts, API docs, tests
+
+Details: [Implementation Plan](docs/06-implementation-plan.md).
+
+---
+
+## 📄 License
+
+To be defined with the client.
