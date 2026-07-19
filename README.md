@@ -24,7 +24,7 @@ A backend **RESTful API** for an e-commerce store — products, categories, shop
 | 05 | [Inventory & Concurrency](docs/05-inventory-and-concurrency.md) | Stock model, no-overselling strategy, locking, **code** |
 | 06 | [Implementation Plan](docs/06-implementation-plan.md) | Milestones, deliverables, testing strategy |
 
-An interactive (offline) diagram is also available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html).
+An interactive version of the ERD (same 11-entity model) is available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html) — download and open it in a browser.
 
 ---
 
