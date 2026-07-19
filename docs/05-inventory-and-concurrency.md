@@ -91,7 +91,7 @@ final class InventoryService
 }
 ```
 
-The `CheckoutService` (see [Architecture §6.4](02-architecture.md#64-service--action--checkoutservice-the-core)) wraps a loop over cart items in `DB::transaction(...)`, calling `deductForSale` for each. If any line throws, the **entire transaction rolls back** — no partial orders, no partial deductions.
+The `CheckoutService` (see [Architecture §6.3](02-architecture.md#63-service--checkoutservice-the-core)) wraps a loop over cart items in `DB::transaction(...)`, calling `deductForSale` for each. If any line throws, the **entire transaction rolls back** — no partial orders, no partial deductions.
 
 ### Why pessimistic (not optimistic) locking?
 Checkout is a short, high-contention critical section on a single row. Pessimistic locking is simple, correct, and fast enough here. An optimistic approach (version column + retry) is viable but adds retry complexity for no practical gain at expected volumes.
@@ -147,23 +147,29 @@ When a deduction brings a product to or below its threshold, `deductForSale` fir
 This test is the proof that overselling cannot happen. It must exist and pass.
 
 ```php
-it('never oversells the last unit under concurrency', function () {
-    $product = Product::factory()->create(['stock_quantity' => 1]);
+final class OverseldingTest extends TestCase
+{
+    use RefreshDatabase;
 
-    // Two customers each with a cart holding 1 of the same product.
-    [$a, $b] = [customerWithCartItem($product, 1), customerWithCartItem($product, 1)];
+    public function test_never_oversells_the_last_unit_under_concurrency(): void
+    {
+        $product = Product::factory()->create(['stock_quantity' => 1]);
 
-    // Fire both checkouts as concurrently as the test harness allows.
-    $results = runConcurrently([
-        fn () => attemptCheckout($a),
-        fn () => attemptCheckout($b),
-    ]);
+        // Two customers, each with a cart holding 1 of the same product.
+        [$a, $b] = [$this->customerWithCartItem($product, 1), $this->customerWithCartItem($product, 1)];
 
-    expect(collect($results)->where('status', 201)->count())->toBe(1); // exactly one succeeds
-    expect(collect($results)->where('status', 422)->count())->toBe(1); // the other is rejected
-    expect($product->fresh()->stock_quantity)->toBe(0);                // never negative
-    expect(Order::count())->toBe(1);
-});
+        // Fire both checkouts as concurrently as the harness allows (parallel connections).
+        $results = $this->runConcurrently([
+            fn () => $this->attemptCheckout($a),
+            fn () => $this->attemptCheckout($b),
+        ]);
+
+        $this->assertSame(1, collect($results)->where('status', 201)->count()); // one succeeds
+        $this->assertSame(1, collect($results)->where('status', 422)->count()); // one rejected
+        $this->assertSame(0, $product->fresh()->stock_quantity);                // never negative
+        $this->assertSame(1, Order::count());
+    }
+}
 ```
 
 > In CI, true parallelism can be approximated with parallel processes/DB connections. The invariants asserted — one success, one rejection, non-negative stock — are what matter.

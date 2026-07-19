@@ -1,0 +1,30 @@
+# Reference material from another project — keep local, never commit
+/Docs1
+
+# Environment & secrets
+.env
+.env.backup
+.env.production
+*.pem
+
+# Dependencies
+/vendor
+/node_modules
+
+# Laravel runtime (relevant once the app is scaffolded)
+/storage/*.key
+/public/build
+/public/hot
+/public/storage
+/bootstrap/cache/*.php
+
+# Logs & caches
+*.log
+.phpunit.result.cache
+.phpunit.cache
+
+# Editor / OS
+/.idea
+/.vscode
+.DS_Store
+Thumbs.db

@@ -61,12 +61,12 @@ flowchart LR
 
 A feature is "done" only when **all** of the following hold:
 
-- [ ] Endpoints validated via Form Requests; authorized via Policies.
+- [ ] Endpoints validated via Validated DTOs; authorized via Policies.
 - [ ] Business logic lives in a Service/Action, not the controller.
 - [ ] Responses shaped by API Resources; errors use the standard envelope.
 - [ ] Feature tests cover happy path + key failure paths.
 - [ ] Migrations reversible; factories & seeders present.
-- [ ] Money handled via `Money`; no floats.
+- [ ] Money handled via `decimal(12,2)` casts; no floats.
 - [ ] No N+1 queries on list endpoints (eager loading verified).
 - [ ] Documented in the OpenAPI spec.
 
@@ -76,7 +76,7 @@ A feature is "done" only when **all** of the following hold:
 
 | Concern | Approach |
 |---------|----------|
-| **Validation** | Form Requests per endpoint |
+| **Validation** | Validated DTOs per endpoint |
 | **Authorization** | Policies + `can:` middleware |
 | **Errors** | Central handler → consistent JSON envelope + correct status |
 | **Money** | `decimal(12,2)` + `Money` value object |
@@ -105,4 +105,4 @@ A feature is "done" only when **all** of the following hold:
 
 ---
 
-**Previous:** [← 05 · Inventory & Concurrency](05-inventory-and-concurrency.md) · **Back to:** [README](../README.md)
+**Previous:** [← 05 · Inventory & Concurrency](05-inventory-and-concurrency.md) · **Next:** [07 · Tech Stack & Code Style →](07-tech-stack-and-code-style.md)

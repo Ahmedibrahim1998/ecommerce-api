@@ -15,14 +15,22 @@ A backend **RESTful API** for an e-commerce store — products, categories, shop
 
 ## 📖 Documentation
 
+**Product & Design**
 | # | Document | What's inside |
 |---|----------|---------------|
 | 01 | [Requirements Analysis](docs/01-requirements.md) | Functional & non-functional requirements, actors, use cases, business rules, scope |
 | 02 | [Architecture](docs/02-architecture.md) | Architecture decision (MVC vs DDD vs Hexagonal), layers, folder structure, patterns, **code** |
 | 03 | [Data Model](docs/03-data-model.md) | ERD, entities, relationships, keys, constraints, indexes |
-| 04 | [API Reference](docs/04-api-reference.md) | Endpoints, auth, conventions, error format, pagination |
+| 04 | [API Reference](docs/04-api-reference.md) | Endpoints, auth, response envelope, pagination |
 | 05 | [Inventory & Concurrency](docs/05-inventory-and-concurrency.md) | Stock model, no-overselling strategy, locking, **code** |
 | 06 | [Implementation Plan](docs/06-implementation-plan.md) | Milestones, deliverables, testing strategy |
+
+**Engineering Handbook** (how we build)
+| # | Document | What's inside |
+|---|----------|---------------|
+| 07 | [Tech Stack & Code Style](docs/07-tech-stack-and-code-style.md) | Packages, PSR-12 style, design patterns, file layout |
+| 08 | [Conventions & Scaffolding](docs/08-conventions-and-scaffolding.md) | Namespaces, naming, localization, **how to add a feature** |
+| 09 | [Integrations](docs/09-integrations.md) | Payment gateway, media/storage, push, API docs |
 
 An interactive version of the ERD (same 11-entity model) is available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html) — download and open it in a browser.
 
@@ -43,35 +51,41 @@ An interactive version of the ERD (same 11-entity model) is available at [`docs/
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Laravel 11+ |
-| Language | PHP 8.3+ |
-| Authentication | Laravel Sanctum (bearer tokens) |
-| Authorization | Policies + Gates (`customer` / `admin`) |
-| Database | MySQL 8 / PostgreSQL 15 |
+| Language / Framework | PHP ^8.2 · Laravel ^11 |
+| API Auth | Laravel Sanctum (bearer tokens) |
+| Routing | Spatie Route Attributes (`#[Get]`, `#[Post]`) |
+| Validation | WendellAdriel Validated DTOs |
+| Responses | API Resources + `ApiResponse` envelope |
+| Persistence | Eloquent + Repository pattern |
+| Admin panel | Filament + Filament Shield (roles) |
+| Database | MySQL 8 / PostgreSQL |
 | Cache · Queue · Locks | Redis |
-| API Docs | OpenAPI (Swagger) |
-| Testing | Pest / PHPUnit (Feature + Unit) |
+| Media / Storage | Spatie Media Library + S3 |
+| API Docs | L5-Swagger (`/api/documentation`) |
+| Quality | Pint (PSR-12) · Duster · PHPUnit · Telescope |
+
+> Full engineering conventions: [07 · Tech Stack & Code Style](docs/07-tech-stack-and-code-style.md).
 
 ---
 
 ## 🏛️ Architecture at a Glance
 
-This project uses a **Modular, Layered architecture** (a pragmatic, DDD-influenced approach) rather than plain MVC or full Hexagonal. Business logic lives in **Services / Actions**, data access behind **Repositories**, and HTTP concerns stay in thin controllers. See [Architecture](docs/02-architecture.md) for the full decision record and rationale.
+This project uses a **Layered architecture** — the same stack as our other Laravel backends — rather than plain MVC or full Hexagonal. Business logic lives in **Services**, data access behind **Repositories**, request input is typed via **Validated DTOs**, and responses go through a unified **`ApiResponse`** envelope. Admin is a **Filament** panel, not API endpoints. See [Architecture](docs/02-architecture.md) for the full decision record.
 
 ```
 HTTP Request
     │
     ▼
-Route ─► Controller ─► Form Request (validation)
-                          │
-                          ▼
-                    Service / Action  ──►  Domain Events ──► Queue (async)
-                          │
-                          ▼
+Route Attribute ─► Controller ─► Validated DTO (validation)
+                       │
+                       ▼
+                    Service  ──►  Domain Events ──► Queue (async)
+                       │
+                       ▼
                     Repository ─► Eloquent Model ─► Database
-                          │
-                          ▼
-                    API Resource (JSON response)
+                       │
+                       ▼
+                    API Resource ─► ApiResponse (JSON)
 ```
 
 ---
@@ -187,7 +201,7 @@ Full breakdown, relationship table, and constraints: [Data Model](docs/03-data-m
 |----------|--------|
 | **Overselling protection** | Stock is decremented **at checkout**, inside a DB transaction with `SELECT … FOR UPDATE` (pessimistic locking) |
 | **Price integrity** | `order_items` store a **snapshot** of price & name at purchase time |
-| **Money** | `decimal(12,2)` wrapped by a `Money` value object — never floats |
+| **Money** | `decimal(12,2)` with Eloquent decimal casts — never floats |
 | **Idempotency** | Idempotency key on `POST /orders` to prevent duplicate orders |
 | **Soft deletion** | Products & categories hidden via `is_active`, not hard-deleted |
 | **Audit** | Every stock change recorded in `stock_movements` |
@@ -246,6 +260,11 @@ php artisan migrate --seed
 # 5. Run
 php artisan serve
 ```
+
+- API base URL: `http://localhost:8000/api/v1`
+- API docs (Swagger): `http://localhost:8000/api/documentation`
+- Admin panel (Filament): `http://localhost:8000/admin`
+- Lint & test: `composer lint` · `php artisan test`
 
 ---
 

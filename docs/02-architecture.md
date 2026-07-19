@@ -1,6 +1,8 @@
 # 02 · Architecture
 
-This document is the **Architecture Decision Record**. It explains which architectural style we chose, why we rejected the alternatives, how the layers are organized, and shows representative code for each layer.
+This is the **Architecture Decision Record**. It documents the architectural style, why the alternatives were rejected, how the layers map onto our team's established stack, and shows representative code in the house style.
+
+> This project follows the **same conventions as our existing Laravel backends**. Read this together with [07 · Tech Stack & Code Style](07-tech-stack-and-code-style.md) and [08 · Conventions & Scaffolding](08-conventions-and-scaffolding.md).
 
 - [1. The Decision](#1-the-decision)
 - [2. Why Not Plain MVC / Full DDD / Hexagonal](#2-why-not-plain-mvc--full-ddd--hexagonal)
@@ -8,52 +10,56 @@ This document is the **Architecture Decision Record**. It explains which archite
 - [4. Request Lifecycle](#4-request-lifecycle)
 - [5. Folder Structure](#5-folder-structure)
 - [6. Code by Layer](#6-code-by-layer)
-- [7. Design Patterns Used](#7-design-patterns-used)
-- [8. Testing Strategy](#8-testing-strategy)
+- [7. Admin: Filament, not API](#7-admin-filament-not-api)
+- [8. Design Patterns Used](#8-design-patterns-used)
+- [9. Testing Strategy](#9-testing-strategy)
 
 ---
 
 ## 1. The Decision
 
-> **We use a Modular, Layered architecture with a Service/Action layer and the Repository pattern, borrowing DDD *tactical* patterns (value objects, domain events) where they add value — all inside a single modular monolith.**
+> **We use a Layered architecture — Controller → DTO → Service → Repository → Model — with attribute-based routing, a unified `ApiResponse` envelope, API Resources, and backed Enums. Admin is a Filament panel. This is our team's standard stack, applied consistently.**
 
 Rationale:
 
-- **Laravel-idiomatic.** It builds on framework conventions (Eloquent, Form Requests, Resources, Events, Policies) instead of fighting them, so onboarding and hiring stay easy.
-- **Business logic is testable and reusable.** Rules live in Services/Actions, not controllers, so they can be unit-tested and called from HTTP, queue jobs, or Artisan commands alike.
-- **Data access is swappable.** Repositories hide Eloquent behind interfaces, which keeps services focused on business rules and makes them easy to mock.
-- **Right-sized.** It gives us the boundaries and testability benefits of DDD/Hexagonal without their ceremony, which for a store of this size would slow delivery without a payoff.
-- **Modular by domain.** Code is grouped by business capability (Catalog, Cart, Ordering, Inventory, Identity), so the system can later be split into services if it ever needs to be — the seams are already there.
+- **Consistency with existing projects.** New developers already know this layout (routing attributes, DTOs, `Foundation\Repositories\Repository`, `ApiResponse`), so onboarding is instant and code review is uniform.
+- **Business logic is isolated and testable.** Rules live in Services, not controllers; controllers only translate HTTP ↔ service calls.
+- **Persistence is abstracted.** Repositories extend a shared `Foundation` base and are bound by interface in `RepositoryServiceProvider`, so services depend on contracts, not Eloquent.
+- **Validation is typed.** Request data enters through Validated DTOs, giving typed properties and validation before the controller body runs.
+- **Admin is free.** Filament + Filament Shield gives the store operators a full admin panel (roles/permissions) without hand-building admin endpoints.
 
 ---
 
 ## 2. Why Not Plain MVC / Full DDD / Hexagonal
 
-| Style | What it is | Verdict for this project |
-|-------|-----------|--------------------------|
-| **Plain MVC** | Logic in controllers/models | ❌ "Fat controllers" become untestable and duplicate rules across endpoints. The checkout logic alone (transaction + locking + snapshots + events) would not fit cleanly in a controller. |
-| **Full DDD** | Aggregates, entities/VOs decoupled from ORM, repositories per aggregate, mapping layer | ⚠️ Excellent for complex domains, but the ORM-decoupling and mapping overhead is high. We adopt its *tactical* pieces (value objects, domain events, ubiquitous language) without the full mapping cost. |
-| **Hexagonal / Ports & Adapters** | Domain core isolated behind ports; framework is an adapter | ⚠️ Great for framework-agnostic cores and many external integrations. Overkill here — Laravel is a deliberate long-term choice, not something we need to abstract away. We keep just the useful idea: depend on interfaces for external concerns (payments, repositories). |
-| **Modular Layered + DDD-lite** ✅ | Layers (Controller → Service → Repository → Model) grouped into domain modules, with VOs and domain events | ✅ **Chosen.** Best balance of clarity, testability, delivery speed, and future optionality. |
+| Style | What it is | Verdict |
+|-------|-----------|---------|
+| **Plain MVC** | Logic in controllers/models | ❌ Fat controllers, duplicated rules, untestable. Checkout (transaction + locking + snapshots + events) cannot live in a controller. |
+| **Full DDD** | Aggregates decoupled from the ORM, mapping layer, repositories per aggregate | ⚠️ Great for very complex domains, but the ORM-decoupling overhead doesn't pay off here. We keep its useful tactical pieces: backed **enums** for state and **domain events** for side effects. |
+| **Hexagonal / Ports & Adapters** | Domain core isolated behind ports | ⚠️ Overkill — Laravel is a deliberate long-term choice, not something to abstract away. We keep only the useful idea: depend on **interfaces** for persistence and third parties (payments). |
+| **Layered (our stack)** ✅ | Controller → DTO → Service → Repository → Model | ✅ **Chosen.** Matches our other backends, balances clarity, testability, and delivery speed. |
 
-**Guiding principle:** *Depend on abstractions for things that cross a boundary (persistence, payment gateways); use the framework directly for things that don't.*
+**Guiding principle:** *Depend on abstractions for things that cross a boundary (repositories, payment gateways); use the framework directly for everything else.*
 
 ---
 
 ## 3. The Layers
 
-| Layer | Responsibility | Must NOT |
-|-------|----------------|----------|
-| **Routing** | Map URLs to controllers, apply middleware (auth, throttle, version) | Contain logic |
-| **Controller** | Translate HTTP ↔ application; call one service; return a Resource | Contain business rules or DB queries |
-| **Form Request** | Validate & authorize input | Mutate data |
-| **Service / Action** | Orchestrate a use case: business rules, transactions, events | Know about HTTP or JSON shape |
-| **Repository** | Encapsulate persistence and queries behind an interface | Contain business rules |
-| **Model (Eloquent)** | Persistence mapping, relationships, casts, scopes | Contain use-case orchestration |
-| **API Resource** | Shape the JSON response | Contain business rules |
-| **Value Object** | Model a typed concept (`Money`, `Sku`) with its invariants | Depend on the framework |
-| **Event / Listener** | Decouple side effects (emails, alerts) via the queue | Block the request |
-| **Policy** | Authorization decisions per resource | — |
+| Layer | Namespace | Responsibility |
+|-------|-----------|----------------|
+| **Routing** | attributes on controllers | Spatie Route Attributes (`#[Get]`, `#[Post]`) map URIs + middleware |
+| **Controller** | `App\Http\Controllers\Api\V1\{Feature}` | Translate HTTP ↔ service; return `ApiResponse` with a Resource |
+| **DTO** | `App\Http\DTOs\Api\V1\{Feature}` | Validate & type incoming request data |
+| **Service** | `App\Services\Api\V1\{Feature}` | Orchestrate a use case: business rules, transactions, events |
+| **Repository** | `App\Repositories\{Entity}` | Persistence & queries behind an interface (extends `Foundation` base) |
+| **Model** | `App\Models` | Eloquent mapping, relations, casts, scopes |
+| **Resource** | `App\Http\Resources\Api\V1` | Shape the JSON payload (snake_case keys) |
+| **ApiResponse** | `App\Foundation\Api\Http\Response\ApiResponse` | Unified success/error envelope |
+| **Enum** | `App\Enum\{Domain}` | Backed enums for state (`OrderStatusEnum`, ...) |
+| **Exception** | `App\Exceptions\{Domain}` | Domain errors thrown from services |
+| **Event / Listener / Job** | `App\Events`, `App\Listeners`, `App\Jobs` | Async side effects on the queue |
+| **Policy** | `App\Policies` | Authorization per model |
+| **Admin** | `App\Filament` | Filament panel for operators (not API) |
 
 ---
 
@@ -61,145 +67,143 @@ Rationale:
 
 ```mermaid
 flowchart TD
-    A[HTTP Request] --> B[Route + Middleware<br/>auth · throttle · version]
-    B --> C[Controller]
-    C --> D[Form Request<br/>validate + authorize]
-    D --> E[Service / Action<br/>business logic + transaction]
-    E --> F[Repository]
+    A[HTTP Request] --> B[Route Attribute + Middleware<br/>auth:sanctum · SetLocale · throttle]
+    B --> C[Controller Api/V1]
+    C --> D[Validated DTO<br/>validate + type]
+    C --> E[Service Api/V1]
+    E --> F[Repository -> Foundation base]
     F --> G[(Database)]
     E --> H[Domain Event]
-    H --> I[[Queue: Listeners<br/>emails · alerts]]
-    E --> J[API Resource]
-    J --> K[JSON Response]
+    H --> I[[Queue: Listeners/Jobs<br/>emails · alerts]]
+    E --> J[Model / data]
+    J --> K[API Resource]
+    K --> L[ApiResponse::success]
+    L --> M[JSON Response]
 ```
 
 ---
 
 ## 5. Folder Structure
 
-A **module-per-domain** layout. Each module owns its models, services, repositories, and DTOs; HTTP concerns are grouped separately and versioned.
+Flat, layer-first layout — identical in spirit to our other backends.
 
 ```
 app/
-├── Domain/                        # Business capabilities (the heart of the system)
-│   ├── Identity/                  # users, addresses, auth
-│   │   ├── Models/
-│   │   ├── Services/
-│   │   └── Repositories/
-│   ├── Catalog/                   # categories, products, images
-│   │   ├── Models/
-│   │   ├── Services/
-│   │   ├── Repositories/
-│   │   └── Data/                  # DTOs
+├── Enum/                         # OrderStatusEnum, RoleEnum, StockMovementTypeEnum, ...
+│   ├── Order/
+│   ├── Product/
+│   └── User/
+├── Events/                       # OrderPlaced, ProductLowStock, OrderCancelled
+├── Exceptions/                   # Order/InsufficientStockException, Cart/EmptyCartException
 │   ├── Cart/
-│   ├── Ordering/                  # orders, order items, payments, checkout
-│   └── Inventory/                 # stock movements, stock service
-│
+│   └── Order/
+├── Filament/                     # Admin panel (Resources, Pages, Widgets)
+├── Foundation/                   # ApiResponse, Repositories\Repository (base), Enum base
 ├── Http/
-│   └── Api/
-│       └── V1/
-│           ├── Controllers/
-│           ├── Requests/
-│           └── Resources/
-│
-├── Support/
-│   └── ValueObjects/              # Money, Sku, ...
-│
-├── Events/                        # OrderPlaced, ProductLowStock, OrderCancelled
-├── Listeners/
-├── Policies/
-└── Providers/                     # bind interfaces -> implementations
+│   ├── Controllers/Api/V1/       # CatalogController, CartController, OrderController, ...
+│   ├── DTOs/Api/V1/              # AddCartItemDTO, CheckoutDTO, ...
+│   ├── Middleware/Api/           # SetLocale
+│   └── Resources/Api/V1/         # ProductResource, OrderResource, ...
+├── Jobs/                         # queued work
+├── Listeners/                    # NotifyAdminsOfLowStock, ...
+├── Models/                       # User, Category, Product, Cart, Order, ... (+ sub-namespaces)
+├── Notifications/                # LowStockNotification, OrderPlacedNotification
+├── Policies/                     # ProductPolicy, OrderPolicy
+├── Providers/                    # RepositoryServiceProvider (interface -> impl bindings)
+├── Repositories/                 # Product/, Cart/, Order/ (interface + impl per entity)
+│   ├── Cart/
+│   ├── Order/
+│   └── Product/
+└── Services/
+    ├── Api/V1/                   # Catalog/, Cart/, Order/ (CheckoutService, ...)
+    └── ThirdParties/             # Payment gateway adapters
+lang/
+├── en/  (enum.php, order.php, cart.php, validation.php)
+└── ar/  (same keys, translated)
 ```
-
-> **Starting simpler is fine.** A small team can begin with `app/Services` + `app/Repositories` in the default Laravel layout and graduate to the modular structure above as domains grow. The layer *responsibilities* stay identical either way.
 
 ---
 
 ## 6. Code by Layer
 
-The examples below all serve one use case — **checkout** — so you can see the layers cooperate.
+All examples serve one use case — **checkout** — so the layers are visible together.
 
-### 6.1 Routes — `routes/api.php`
-
-```php
-Route::prefix('v1')->group(function () {
-    // Public
-    Route::get('products', [ProductController::class, 'index']);
-    Route::get('products/{product:slug}', [ProductController::class, 'show']);
-
-    // Authenticated customer
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::apiResource('cart.items', CartItemController::class)->shallow();
-        Route::post('orders', [OrderController::class, 'store'])
-            ->middleware('throttle:checkout');
-        Route::get('orders', [OrderController::class, 'index']);
-        Route::get('orders/{order}', [OrderController::class, 'show']);
-        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
-    });
-
-    // Admin
-    Route::middleware(['auth:sanctum', 'can:admin'])->prefix('admin')->group(function () {
-        Route::apiResource('products', AdminProductController::class);
-        Route::get('products/low-stock', [AdminProductController::class, 'lowStock']);
-    });
-});
-```
-
-### 6.2 Controller (thin) — `OrderController`
+### 6.1 Controller with attribute routing — `OrderController`
 
 ```php
+namespace App\Http\Controllers\Api\V1;
+
+use App\Foundation\Api\Http\Response\ApiResponse;
+use App\Http\DTOs\Api\V1\Order\CheckoutDTO;
+use App\Http\Resources\Api\V1\OrderResource;
+use App\Services\Api\V1\Order\CheckoutService;
+use Spatie\RouteAttributes\Attributes\{Get, Post};
+
 final class OrderController extends Controller
 {
     public function __construct(private readonly CheckoutService $checkout) {}
 
-    public function store(StoreOrderRequest $request): JsonResponse
+    #[Post(uri: 'orders', middleware: ['auth:sanctum', 'throttle:checkout'])]
+    public function store(CheckoutDTO $dto): \Illuminate\Http\JsonResponse
     {
-        $order = $this->checkout->place(
-            user: $request->user(),
-            addressId: $request->integer('shipping_address_id'),
-            idempotencyKey: $request->header('Idempotency-Key'),
+        $order = $this->checkout->place(auth()->user(), $dto);
+
+        return ApiResponse::success(
+            data: new OrderResource($order),
+            message: trans('order.api.placed_successfully'),
+            code: 201,
         );
+    }
 
-        return OrderResource::make($order)
-            ->response()
-            ->setStatusCode(201);
+    #[Get(uri: 'orders', middleware: ['auth:sanctum'])]
+    public function index(): \Illuminate\Http\JsonResponse
+    {
+        return ApiResponse::success(
+            data: OrderResource::collection($this->checkout->listForUser(auth()->user())),
+        );
     }
 }
 ```
 
-### 6.3 Form Request — `StoreOrderRequest`
+### 6.2 Validated DTO — `CheckoutDTO`
 
 ```php
-final class StoreOrderRequest extends FormRequest
+namespace App\Http\DTOs\Api\V1\Order;
+
+use WendellAdriel\ValidatedDTO\ValidatedDTO;
+use WendellAdriel\ValidatedDTO\Attributes\Rules;
+
+final class CheckoutDTO extends ValidatedDTO
 {
-    public function authorize(): bool
-    {
-        return $this->user() !== null;
-    }
+    #[Rules(['required', 'integer', 'exists:addresses,id'])]
+    public int $shipping_address_id;
 
-    public function rules(): array
-    {
-        return [
-            'shipping_address_id' => [
-                'required', 'integer',
-                Rule::exists('addresses', 'id')->where('user_id', $this->user()->id),
-            ],
-        ];
-    }
+    protected function defaults(): array { return []; }
+    protected function casts(): array { return []; }
 }
 ```
 
-### 6.4 Service / Action — `CheckoutService` (the core)
+### 6.3 Service — `CheckoutService` (the core)
 
 ```php
-final class CheckoutService
+namespace App\Services\Api\V1\Order;
+
+use App\Enum\Order\OrderStatusEnum;
+use App\Events\OrderPlaced;
+use App\Exceptions\Cart\EmptyCartException;
+use App\Models\Order;
+use App\Repositories\Cart\CartRepositoryInterface;
+use App\Services\Api\V1\Inventory\InventoryService;
+use Illuminate\Support\Facades\DB;
+
+final readonly class CheckoutService
 {
     public function __construct(
-        private readonly CartRepositoryInterface $carts,
-        private readonly InventoryService $inventory,
+        private CartRepositoryInterface $carts,
+        private InventoryService $inventory,
     ) {}
 
-    public function place(User $user, int $addressId, ?string $idempotencyKey): Order
+    public function place(\App\Models\User $user, \App\Http\DTOs\Api\V1\Order\CheckoutDTO $dto): Order
     {
         $cart = $this->carts->activeForUser($user->id);
 
@@ -207,12 +211,12 @@ final class CheckoutService
             throw new EmptyCartException();
         }
 
-        return DB::transaction(function () use ($cart, $user, $addressId) {
+        return DB::transaction(function () use ($cart, $user, $dto) {
             $order = Order::create([
                 'user_id'             => $user->id,
-                'shipping_address_id' => $addressId,
-                'order_number'        => OrderNumber::generate(),
-                'status'              => OrderStatus::Pending,
+                'shipping_address_id' => $dto->shipping_address_id,
+                'order_number'        => \App\Support\OrderNumber::generate(),
+                'status'              => OrderStatusEnum::PENDING,
             ]);
 
             foreach ($cart->items as $item) {
@@ -223,7 +227,7 @@ final class CheckoutService
                 $order->items()->create([
                     'product_id'            => $product->id,
                     'product_name_snapshot' => $product->name,
-                    'unit_price'            => $product->price,      // snapshot
+                    'unit_price'            => $product->price,   // snapshot
                     'quantity'              => $item->quantity,
                     'line_total'            => $product->price * $item->quantity,
                 ]);
@@ -232,7 +236,7 @@ final class CheckoutService
             $order->recalculateTotals();
             $this->carts->clear($cart);
 
-            event(new OrderPlaced($order));   // async listeners: email, low-stock check
+            event(new OrderPlaced($order));   // queued listeners: email + low-stock check
 
             return $order->fresh('items');
         });
@@ -240,151 +244,170 @@ final class CheckoutService
 }
 ```
 
-### 6.5 Repository (interface + binding)
+### 6.4 Repository (interface + implementation over Foundation base)
 
 ```php
-interface ProductRepositoryInterface
-{
-    public function lockById(int $id): Product;   // SELECT ... FOR UPDATE
-    public function lowStock(): Collection;
-}
+namespace App\Repositories\Product;
 
-final class EloquentProductRepository implements ProductRepositoryInterface
+use App\Foundation\Repositories\RepositoryInterface;
+
+interface ProductRepositoryInterface extends RepositoryInterface
 {
+    public function lockById(int $id): \App\Models\Product;   // SELECT ... FOR UPDATE
+    public function lowStock(): \Illuminate\Support\Collection;
+}
+```
+
+```php
+namespace App\Repositories\Product;
+
+use App\Foundation\Repositories\Repository;
+use App\Models\Product;
+
+final class ProductRepository extends Repository implements ProductRepositoryInterface
+{
+    public function __construct() { parent::__construct(new Product); }
+
     public function lockById(int $id): Product
     {
-        return Product::query()->lockForUpdate()->findOrFail($id);
+        return $this->model->newQuery()->lockForUpdate()->findOrFail($id);
     }
 
-    public function lowStock(): Collection
+    public function lowStock(): \Illuminate\Support\Collection
     {
-        return Product::query()
+        return $this->model->newQuery()
             ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->get();
     }
 }
 ```
 
-Bound in a service provider so services depend on the **interface**, not Eloquent:
+Bound by interface in `App\Providers\RepositoryServiceProvider`:
 
 ```php
-// AppServiceProvider::register()
-$this->app->bind(ProductRepositoryInterface::class, EloquentProductRepository::class);
+protected array $repositories = [
+    ProductRepositoryInterface::class => ProductRepository::class,
+    CartRepositoryInterface::class    => CartRepository::class,
+    OrderRepositoryInterface::class   => OrderRepository::class,
+];
 ```
 
-### 6.6 Value Object — `Money`
+### 6.5 Enum — `OrderStatusEnum`
 
 ```php
-final readonly class Money
+namespace App\Enum\Order;
+
+use App\Foundation\Enum\BasicEnum;
+use Filament\Support\Contracts\HasLabel;
+
+enum OrderStatusEnum: string implements HasLabel
 {
-    public function __construct(public int $minorUnits, public string $currency = 'USD')
-    {
-        if ($minorUnits < 0) {
-            throw new InvalidArgumentException('Money cannot be negative.');
-        }
-    }
+    case PENDING    = 'pending';
+    case PAID       = 'paid';
+    case PROCESSING = 'processing';
+    case SHIPPED    = 'shipped';
+    case DELIVERED  = 'delivered';
+    case CANCELLED  = 'cancelled';
+    case REFUNDED   = 'refunded';
 
-    public static function fromDecimal(string $amount, string $currency = 'USD'): self
+    public function getLabel(): string
     {
-        return new self((int) bcmul($amount, '100'), $currency);
-    }
-
-    public function add(Money $other): self
-    {
-        $this->assertSameCurrency($other);
-        return new self($this->minorUnits + $other->minorUnits, $this->currency);
-    }
-
-    public function multiply(int $qty): self
-    {
-        return new self($this->minorUnits * $qty, $this->currency);
-    }
-
-    private function assertSameCurrency(Money $other): void
-    {
-        if ($this->currency !== $other->currency) {
-            throw new CurrencyMismatchException();
-        }
+        return trans("enum.order_status.{$this->value}");
     }
 }
 ```
 
-### 6.7 API Resource — `OrderResource`
+### 6.6 API Resource — `OrderResource` (snake_case keys)
 
 ```php
+namespace App\Http\Resources\Api\V1;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+
 final class OrderResource extends JsonResource
 {
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
         return [
             'id'           => $this->id,
             'order_number' => $this->order_number,
             'status'       => $this->status->value,
+            'status_label' => $this->status->getLabel(),
             'total'        => $this->total,
             'items'        => OrderItemResource::collection($this->whenLoaded('items')),
-            'created_at'   => $this->created_at->toIso8601String(),
+            'created_at'   => $this->created_at?->toIso8601String(),
         ];
     }
 }
 ```
 
-### 6.8 Event + Listener (async)
+### 6.7 Exception, Event + queued Listener
 
 ```php
-final class ProductLowStock
-{
-    public function __construct(public readonly int $productId) {}
-}
+namespace App\Exceptions\Order;
 
-final class NotifyAdminsOfLowStock implements ShouldQueue
+final class InsufficientStockException extends \Exception
 {
-    public function handle(ProductLowStock $event): void
+    public function __construct(public readonly int $productId, public readonly int $available)
     {
-        $product = Product::find($event->productId);
-        Notification::send(User::admins()->get(), new LowStockNotification($product));
+        parent::__construct(trans('order.api.insufficient_stock'));
     }
 }
 ```
 
-### 6.9 Policy
-
 ```php
-final class ProductPolicy
+final class NotifyAdminsOfLowStock implements \Illuminate\Contracts\Queue\ShouldQueue
 {
-    public function manage(User $user): bool
+    public function handle(\App\Events\ProductLowStock $event): void
     {
-        return $user->role === Role::Admin;
+        $product = \App\Models\Product::find($event->productId);
+        \Illuminate\Support\Facades\Notification::send(
+            \App\Models\User::admins()->get(),
+            new \App\Notifications\LowStockNotification($product),
+        );
     }
 }
 ```
 
 ---
 
-## 7. Design Patterns Used
+## 7. Admin: Filament, not API
+
+Store operators use a **Filament** admin panel, not hand-built API endpoints:
+
+- **Filament Resources** for `Product`, `Category`, `Order`, `StockMovement` (list, create, edit, view).
+- **Filament Shield** for roles & permissions (`admin` and any finer-grained roles).
+- **Order status transitions**, **restock**, and **low-stock views** are Filament actions/widgets backed by the same Services (`InventoryService`, order services) the API uses — one source of truth for business logic.
+
+The public API (`/api/v1`) therefore stays focused on the **customer-facing app**. See [04 · API Reference](04-api-reference.md).
+
+---
+
+## 8. Design Patterns Used
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| **Service / Action** | `CheckoutService`, `InventoryService` | One class per use case; the transaction boundary |
-| **Repository** | `*RepositoryInterface` | Swap/mocks persistence; keep services DB-agnostic |
-| **Value Object** | `Money`, `Sku` | Enforce invariants; eliminate primitive obsession |
-| **DTO** | `Domain/*/Data` | Typed transport between layers |
-| **Domain Events + Queue** | `OrderPlaced`, `ProductLowStock` | Decouple side effects; keep requests fast |
-| **Policy (Strategy for authz)** | `*Policy` | Centralize authorization rules |
-| **Enum** | `OrderStatus`, `Role`, `StockMovementType` | Type-safe state instead of magic strings |
-| **Dependency Injection** | Constructors everywhere | Inversion of control; testability |
+| **Service** | `App\Services\Api\V1\*` | One class per use case; the transaction boundary |
+| **Repository** | `App\Repositories\{Entity}` over `Foundation\Repositories\Repository` | Swap/mock persistence; DB-agnostic services |
+| **DTO (validated)** | `App\Http\DTOs\Api\V1\*` | Typed, pre-validated request input |
+| **Response envelope** | `Foundation\...\ApiResponse` | One consistent success/error shape |
+| **Domain Events + Queue** | `OrderPlaced`, `ProductLowStock` | Decouple side effects; fast requests |
+| **Backed Enums** | `OrderStatusEnum`, `RoleEnum` | Type-safe state + localized labels |
+| **Policy** | `App\Policies\*` | Centralized authorization |
+| **Dependency Injection** | constructors | Inversion of control; testability |
 
 ---
 
-## 8. Testing Strategy
+## 9. Testing Strategy
 
 | Level | Target | Tooling |
 |-------|--------|---------|
-| **Unit** | Value objects, pure service logic, policies | Pest, no DB |
-| **Feature** | Endpoints end-to-end (HTTP → DB) | Pest + `RefreshDatabase` |
-| **Concurrency** | Overselling: two parallel checkouts for the last unit | DB-backed test asserting exactly one succeeds |
-| **Contract** | Response shape vs OpenAPI spec | Schema assertions |
+| **Unit** | Services (mocked repos), enums, policies | PHPUnit |
+| **Feature** | Endpoints end-to-end (HTTP → DB) | PHPUnit + `RefreshDatabase` |
+| **Concurrency** | Overselling: two parallel checkouts for the last unit | PHPUnit, DB-backed |
+| **Style / lint** | PSR-12 | `composer lint` (Pint), Duster |
 
-> The **concurrency test for overselling is mandatory** — it is the single most important correctness guarantee in the system. See [Inventory & Concurrency](05-inventory-and-concurrency.md).
+> The **concurrency test for overselling is mandatory** — the single most important correctness guarantee. See [05 · Inventory & Concurrency](05-inventory-and-concurrency.md).
 
 ---
 

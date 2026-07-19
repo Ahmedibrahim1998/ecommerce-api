@@ -56,10 +56,16 @@ Content-Type: application/json
 
 ---
 
-## 3. Errors
+## 3. Response Envelope & Errors
 
-A single, consistent error envelope with correct HTTP status codes.
+Every response is wrapped by `App\Foundation\Api\Http\Response\ApiResponse` (see [Architecture §3](02-architecture.md#3-the-layers)).
 
+**Success**
+```json
+{ "message": "Order placed successfully.", "data": { "...": "..." } }
+```
+
+**Error**
 ```json
 {
   "message": "The given data was invalid.",
@@ -85,7 +91,7 @@ A single, consistent error envelope with correct HTTP status codes.
 
 ## 4. Endpoints
 
-### Catalog
+### Catalog (customer-facing)
 
 | Method | Endpoint | Access | Description |
 |:------:|----------|:------:|-------------|
@@ -93,11 +99,8 @@ A single, consistent error envelope with correct HTTP status codes.
 | GET | `/categories/{slug}/products` | 🔓 | Products in a category |
 | GET | `/products` | 🔓 | List products (paginate / filter / sort / search) |
 | GET | `/products/{slug}` | 🔓 | Product detail with images & availability |
-| POST | `/admin/products` | 👑 | Create product |
-| PUT | `/admin/products/{id}` | 👑 | Update product |
-| DELETE | `/admin/products/{id}` | 👑 | Deactivate product |
-| GET | `/admin/products/low-stock` | 👑 | Products needing reorder |
-| POST | `/admin/products/{id}/restock` | 👑 | Add stock (logs a movement) |
+
+> **Admin operations** — creating/editing products & categories, restocking, adjusting inventory, and viewing the low-stock report are done in the **Filament admin panel**, not through the API. They are backed by the same Services the API uses. See [Architecture §7](02-architecture.md#7-admin-filament-not-api).
 
 ### Cart 🔐
 
@@ -117,7 +120,8 @@ A single, consistent error envelope with correct HTTP status codes.
 | GET | `/orders` | List the customer's orders |
 | GET | `/orders/{id}` | Order detail |
 | POST | `/orders/{id}/cancel` | Cancel (restocks items) |
-| PATCH | `/admin/orders/{id}/status` | 👑 Update order status |
+
+> Order **status transitions** by operators (e.g. mark shipped/delivered) happen in the Filament admin panel.
 
 **Example — checkout**
 

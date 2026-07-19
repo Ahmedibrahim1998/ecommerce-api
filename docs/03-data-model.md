@@ -205,7 +205,7 @@ An **idempotency** store (table or Redis) keys `POST /orders` by `Idempotency-Ke
 
 ## 5. Design Notes
 
-- **Money as decimals, never floats.** All money columns are `decimal(12,2)`; the domain wraps them in a `Money` value object (see [Architecture §6.6](02-architecture.md#66-value-object--money)).
+- **Money as decimals, never floats.** All money columns are `decimal(12,2)`, handled via Eloquent decimal casts — never floating point.
 - **Snapshots protect history.** Orders never depend on the current state of a product.
 - **Audit over mutation.** We never lose the "why" of a stock change — `stock_movements` is the source of truth for inventory history and reporting.
 - **Soft deletion by default** for catalog data keeps referential integrity simple and history intact.
