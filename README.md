@@ -62,7 +62,7 @@ An interactive version of the ERD (same 11-entity model) is available at [`docs/
 | Cache · Queue · Locks | Redis |
 | Media / Storage | Spatie Media Library + S3 |
 | API Docs | L5-Swagger (`/api/documentation`) |
-| Quality | Pint (PSR-12) · Duster · PHPUnit · Telescope |
+| Quality | Pint (PSR-12) · PHPUnit · Telescope |
 
 > Full engineering conventions: [07 · Tech Stack & Code Style](docs/07-tech-stack-and-code-style.md).
 

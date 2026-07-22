@@ -405,7 +405,7 @@ The public API (`/api/v1`) therefore stays focused on the **customer-facing app*
 | **Unit** | Services (mocked repos), enums, policies | PHPUnit |
 | **Feature** | Endpoints end-to-end (HTTP → DB) | PHPUnit + `RefreshDatabase` |
 | **Concurrency** | Overselling: two parallel checkouts for the last unit | PHPUnit, DB-backed |
-| **Style / lint** | PSR-12 | `composer lint` (Pint), Duster |
+| **Style / lint** | PSR-12 | `composer lint` (Pint) |
 
 > The **concurrency test for overselling is mandatory** — the single most important correctness guarantee. See [05 · Inventory & Concurrency](05-inventory-and-concurrency.md).
 

@@ -20,7 +20,7 @@ Namespaces, naming conventions, localization, and a step-by-step recipe for addi
 | **Repository** | `App\Repositories\{Entity}` | `App\Repositories\Product\ProductRepository` |
 | **Repository interface** | `App\Repositories\{Entity}` | `App\Repositories\Product\ProductRepositoryInterface` |
 | **Services (API)** | `App\Services\Api\V1\{Feature}` | `App\Services\Api\V1\Order\CheckoutService` |
-| **Services (3rd party)** | `App\Services\ThirdParties\{Vendor}` | `App\Services\ThirdParties\Paymob\ChargeService` |
+| **Services (3rd party)** | `App\Services\ThirdParties\{Vendor}` | `App\Services\ThirdParties\Payment\ChargeService` |
 | **Controllers (API)** | `App\Http\Controllers\Api\V1\{Feature}` | `App\Http\Controllers\Api\V1\Cart\CartController` |
 | **DTOs** | `App\Http\DTOs\Api\V1\{Feature}` | `App\Http\DTOs\Api\V1\Order\CheckoutDTO` |
 | **Resources** | `App\Http\Resources\Api\V1` | `App\Http\Resources\Api\V1\ProductResource` |

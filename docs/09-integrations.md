@@ -5,7 +5,7 @@ External services the system talks to, and the pattern we use to keep them repla
 - [1. Integration Principles](#1-integration-principles)
 - [2. Payment Gateway](#2-payment-gateway)
 - [3. Media & Storage](#3-media--storage)
-- [4. Push Notifications](#4-push-notifications-optional)
+- [4. Notifications](#4-notifications)
 - [5. API Documentation](#5-api-documentation)
 - [6. Configuration & Secrets](#6-configuration--secrets)
 
@@ -34,7 +34,7 @@ interface PaymentGatewayInterface
 }
 ```
 
-- **Implementation:** e.g. `App\Services\ThirdParties\Paymob\PaymobGateway implements PaymentGatewayInterface`, bound in a service provider.
+- **Implementation:** the chosen provider's class implements `PaymentGatewayInterface` (e.g. `App\Services\ThirdParties\Payment\{Provider}Gateway`), bound in a service provider. **The specific provider is to be decided with the client.**
 - **Flow:** order created (`pending`) → `charge()` → gateway redirect/token → webhook confirms → order marked `paid`, a `payments` row set to `succeeded`.
 - **Rule:** the payment call happens **outside** the stock-locking transaction (see [05 · Inventory & Concurrency](05-inventory-and-concurrency.md#guardrails)).
 
@@ -62,12 +62,12 @@ sequenceDiagram
 
 ---
 
-## 4. Push Notifications (optional)
+## 4. Notifications
 
-- **Channel:** `laravel-notification-channels/fcm` (Firebase Cloud Messaging).
-- **Use cases:** order status changes (`shipped`, `delivered`), and could extend to back-in-stock alerts.
-- **Delivery:** always dispatched via **queued** notifications so requests stay fast.
-- Device tokens are stored per user (e.g. `notification_token`) and refreshed on login.
+- **Channel:** Laravel Mail (email) for customer notifications and admin alerts.
+- **Use cases:** order confirmation, order status changes (`shipped`, `delivered`), and **low-stock alerts** to admins.
+- **Delivery:** always dispatched via **queued** notifications so requests stay fast (see [Inventory §6](05-inventory-and-concurrency.md#6-low-stock-detection--alerts)).
+- Additional channels (SMS / push) can be added later if a mobile app is in scope — not part of v1.
 
 ---
 
@@ -85,7 +85,7 @@ sequenceDiagram
 |---------|-----------------|
 | Payment gateway | `PAYMENT_API_KEY`, `PAYMENT_HMAC`, `PAYMENT_BASE_URL` |
 | Storage | `FILESYSTEM_DISK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET` |
-| Push (FCM) | `FCM_SERVER_KEY` / service-account credentials |
+| Mail | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` |
 | Currency | `DEFAULT_CURRENCY` |
 
 - `.env` is **git-ignored**; `.env.example` documents required keys with safe placeholders.

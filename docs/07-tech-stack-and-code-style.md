@@ -28,25 +28,22 @@ The engineering handbook for this project. It mirrors the conventions of our exi
 | **Laravel API Resources** | JSON response shaping |
 | **DarkaOnline L5-Swagger** | OpenAPI 3.0 / Swagger UI (served at `/api/documentation`) |
 
-### Admin & CMS
+### Admin
 | Package | Purpose |
 |---------|---------|
 | **Filament** ^3.x | Admin panel UI (products, categories, orders, inventory) |
 | **Filament Shield** | Roles & permissions |
-| **Filament Breezy** | 2FA, profile, sessions for admins |
 
-### Domain Features
+### Media & Storage
 | Package | Purpose |
 |---------|---------|
 | **Spatie Media Library** | Product images & media collections |
 | **League Flysystem AWS S3** | Object storage for media |
-| **Laravel Notification Channels FCM** *(optional)* | Push notifications (order updates) |
 
 ### Dev & Quality
 | Package | Purpose |
 |---------|---------|
 | **Laravel Pint** | PHP code style (PSR-12) |
-| **Tighten Duster** | Linting / code quality |
 | **PHPUnit** | Tests |
 | **Laravel Telescope** | Local debugging / request inspection |
 | **Doctrine DBAL** | Schema changes in migrations |
