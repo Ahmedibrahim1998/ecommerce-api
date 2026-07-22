@@ -29,7 +29,7 @@ A backend **RESTful API** for an e-commerce store — products, categories, shop
 | # | Document | What's inside |
 |---|----------|---------------|
 | 07 | [Tech Stack & Code Style](docs/07-tech-stack-and-code-style.md) | Packages, PSR-12 style, design patterns, file layout |
-| 08 | [Conventions & Scaffolding](docs/08-conventions-and-scaffolding.md) | Namespaces, naming, localization, **how to add a feature** |
+| 08 | [Conventions & Scaffolding](docs/08-conventions-and-scaffolding.md) | Namespaces, naming, message strings, **how to add a feature** |
 | 09 | [Integrations](docs/09-integrations.md) | Payment gateway, media/storage, push, API docs |
 
 An interactive version of the ERD (same 11-entity model) is available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html) — download and open it in a browser.

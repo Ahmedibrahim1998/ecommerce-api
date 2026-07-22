@@ -1,10 +1,10 @@
 # 08 · Conventions & Scaffolding
 
-Namespaces, naming conventions, localization, and a step-by-step recipe for adding a new API feature the way the rest of the codebase is built. Use this whenever you create a model, service, repository, controller, or DTO.
+Namespaces, naming conventions, message strings, and a step-by-step recipe for adding a new API feature the way the rest of the codebase is built. Use this whenever you create a model, service, repository, controller, or DTO.
 
 - [1. Namespace Map](#1-namespace-map)
 - [2. Naming Conventions](#2-naming-conventions)
-- [3. Localization](#3-localization)
+- [3. User-Facing Strings](#3-user-facing-strings)
 - [4. How to Add a New API Feature](#4-how-to-add-a-new-api-feature)
 - [5. New Feature Checklist](#5-new-feature-checklist)
 
@@ -24,7 +24,7 @@ Namespaces, naming conventions, localization, and a step-by-step recipe for addi
 | **Controllers (API)** | `App\Http\Controllers\Api\V1\{Feature}` | `App\Http\Controllers\Api\V1\Cart\CartController` |
 | **DTOs** | `App\Http\DTOs\Api\V1\{Feature}` | `App\Http\DTOs\Api\V1\Order\CheckoutDTO` |
 | **Resources** | `App\Http\Resources\Api\V1` | `App\Http\Resources\Api\V1\ProductResource` |
-| **Middleware** | `App\Http\Middleware\Api` | `App\Http\Middleware\Api\SetLocale` |
+| **Middleware** | `App\Http\Middleware\Api` | `App\Http\Middleware\Api\ForceJsonResponse` |
 | **Foundation** | `App\Foundation\*` | `App\Foundation\Api\Http\Response\ApiResponse` |
 | **Exceptions** | `App\Exceptions\{Domain}` | `App\Exceptions\Order\InsufficientStockException` |
 | **Policies** | `App\Policies` | `App\Policies\ProductPolicy` |
@@ -84,15 +84,15 @@ Namespaces, naming conventions, localization, and a step-by-step recipe for addi
 
 ---
 
-## 3. Localization
+## 3. User-Facing Strings
 
-- **Files:** `lang/en/*.php` and `lang/ar/*.php` with identical keys (`enum.php`, `order.php`, `cart.php`, `product.php`, `validation.php`).
-- **Usage:** `trans('order.api.placed_successfully')` → `lang/{locale}/order.php` → `['api']['placed_successfully']`.
+The store is **single-language (English)**. User-facing messages are centralized in language files (standard Laravel practice) rather than hard-coded in classes.
+
+- **Files:** `lang/en/*.php` (`enum.php`, `order.php`, `cart.php`, `product.php`, `validation.php`).
+- **Usage:** `trans('order.api.placed_successfully')` → `lang/en/order.php` → `['api']['placed_successfully']`.
 - **Enum labels:** enums return `trans("enum.order_status.{$this->value}")`; keys in `enum.php`.
-- **API locale:** `SetLocale` middleware reads `Accept-Language` and calls `App::setLocale()` if the value is in `App\Foundation\Enum\AppLanguageEnum`.
-- **Bilingual content:** use `name_ar` / `name_en` columns; a `localizedColumn('name')` helper resolves by locale.
 
-**To add a key:** add it to `lang/en/{file}.php` **and** `lang/ar/{file}.php`, then use `trans('...')`.
+**To add a key:** add it to the relevant `lang/en/{file}.php`, then use `trans('...')`.
 
 ---
 
@@ -104,7 +104,7 @@ Worked example — a new **Coupon** feature (a realistic future addition): list,
 ```bash
 php artisan make:migration create_coupons_table
 ```
-Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `casts`, relations. Add an enum `App\Enum\Coupon\CouponTypeEnum` if needed, plus `enum.php` labels in both locales.
+Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `casts`, relations. Add an enum `App\Enum\Coupon\CouponTypeEnum` if needed, plus `enum.php` labels.
 
 **Step 2 — Repository (interface + impl + binding)**
 - `app/Repositories/Coupon/CouponRepositoryInterface.php` extends `App\Foundation\Repositories\RepositoryInterface`; add extras like `findByCode(string $code)`.
@@ -126,7 +126,7 @@ Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `cast
 - `#[Post(uri: 'cart/apply-coupon', middleware: ['auth:sanctum'])]` → returns `ApiResponse::success(data: new CouponResource(...), message: trans('coupon.api.applied'))`.
 
 **Step 7 — Translations**
-- Add keys to `lang/en/coupon.php` and `lang/ar/coupon.php`.
+- Add keys to `lang/en/coupon.php`.
 
 **Step 8 — Policy / Filament (if admin-managed)**
 - `ProductPolicy`-style policy if needed; add a Filament Resource so operators can manage coupons.
@@ -143,7 +143,7 @@ Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `cast
 - [ ] DTO(s) in `App\Http\DTOs\Api\V1\{Feature}\`
 - [ ] Resource(s) in `App\Http\Resources\Api\V1\`
 - [ ] Controller in `App\Http\Controllers\Api\V1\` with route attributes
-- [ ] Translation keys in `lang/en` **and** `lang/ar`
+- [ ] Message strings in `lang/en`
 - [ ] Policy if authorization is required
 - [ ] Filament Resource if operators manage it
 - [ ] Feature test(s) covering happy + failure paths

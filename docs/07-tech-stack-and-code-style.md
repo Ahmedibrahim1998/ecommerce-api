@@ -135,8 +135,8 @@ The engineering handbook for this project. It mirrors the conventions of our exi
 | Business logic | Services using Repositories |
 | Admin panel | Filament + Filament Shield |
 | Media / images | Spatie Media Library + S3 |
-| Enums & labels | Backed enums + `lang/en/enum.php`, `lang/ar/enum.php` |
-| Localization | `lang/{locale}/*.php`, `trans()`, `Accept-Language` + SetLocale middleware |
+| Enums & labels | Backed enums + `lang/en/enum.php` |
+| User-facing strings | `lang/en/*.php` + `trans()` (single language) |
 | API docs | L5-Swagger at `/api/documentation` |
 
 ---
@@ -153,7 +153,7 @@ app/
 ├── Http/
 │   ├── Controllers/Api/V1/    # API controllers (attribute routes)
 │   ├── DTOs/Api/V1/           # Request DTOs
-│   ├── Middleware/Api/        # API middleware (SetLocale)
+│   ├── Middleware/Api/        # API middleware
 │   └── Resources/Api/V1/      # API resources
 ├── Jobs/                      # Queued jobs
 ├── Listeners/                 # Event listeners

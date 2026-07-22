@@ -67,7 +67,7 @@ Rationale:
 
 ```mermaid
 flowchart TD
-    A[HTTP Request] --> B[Route Attribute + Middleware<br/>auth:sanctum · SetLocale · throttle]
+    A[HTTP Request] --> B[Route Attribute + Middleware<br/>auth:sanctum · throttle]
     B --> C[Controller Api/V1]
     C --> D[Validated DTO<br/>validate + type]
     C --> E[Service Api/V1]
@@ -102,7 +102,7 @@ app/
 ├── Http/
 │   ├── Controllers/Api/V1/       # CatalogController, CartController, OrderController, ...
 │   ├── DTOs/Api/V1/              # AddCartItemDTO, CheckoutDTO, ...
-│   ├── Middleware/Api/           # SetLocale
+│   ├── Middleware/Api/           # API middleware (e.g. ForceJsonResponse)
 │   └── Resources/Api/V1/         # ProductResource, OrderResource, ...
 ├── Jobs/                         # queued work
 ├── Listeners/                    # NotifyAdminsOfLowStock, ...
@@ -118,8 +118,7 @@ app/
     ├── Api/V1/                   # Catalog/, Cart/, Order/ (CheckoutService, ...)
     └── ThirdParties/             # Payment gateway adapters
 lang/
-├── en/  (enum.php, order.php, cart.php, validation.php)
-└── ar/  (same keys, translated)
+└── en/  (enum.php, order.php, cart.php, validation.php)
 ```
 
 ---
@@ -392,7 +391,7 @@ The public API (`/api/v1`) therefore stays focused on the **customer-facing app*
 | **DTO (validated)** | `App\Http\DTOs\Api\V1\*` | Typed, pre-validated request input |
 | **Response envelope** | `Foundation\...\ApiResponse` | One consistent success/error shape |
 | **Domain Events + Queue** | `OrderPlaced`, `ProductLowStock` | Decouple side effects; fast requests |
-| **Backed Enums** | `OrderStatusEnum`, `RoleEnum` | Type-safe state + localized labels |
+| **Backed Enums** | `OrderStatusEnum`, `RoleEnum` | Type-safe state + human-readable labels |
 | **Policy** | `App\Policies\*` | Centralized authorization |
 | **Dependency Injection** | constructors | Inversion of control; testability |
 
