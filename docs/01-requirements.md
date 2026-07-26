@@ -79,7 +79,7 @@ Roles are stored on `users.role` and enforced through Laravel **Policies** and r
 | NFR-6 | **Maintainability** | Layered architecture, dependency inversion via interfaces, ≥ 80% coverage on domain logic. |
 | NFR-7 | **Observability** | Structured logging, an auditable stock-movement trail, and consistent error reporting. |
 | NFR-8 | **API standards** | Versioned (`/api/v1`), RESTful resources, consistent JSON envelope and error format, OpenAPI documentation. |
-| NFR-9 | **Money correctness** | All monetary values use fixed-precision decimals via a `Money` value object — never floating point. |
+| NFR-9 | **Money correctness** | All monetary values use fixed-precision `decimal(12,2)` with Eloquent decimal casts — never floating point. |
 
 ---
 
