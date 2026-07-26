@@ -23,7 +23,7 @@ RESTful, versioned under `/api/v1`. All requests and responses are JSON. Authent
 | Rate limiting | `throttle` middleware; stricter on auth & checkout |
 | Versioning | URI-based (`/v1`); breaking changes ship under `/v2` |
 
-**Legend:** 🔓 public · 🔐 authenticated · 👑 admin only.
+**Legend:** 🔓 public · 🔐 authenticated. (Admin operations live in the Filament panel, not the API.)
 
 ---
 

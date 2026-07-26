@@ -79,7 +79,7 @@ final class InventoryService
         StockMovement::create([
             'product_id'         => $product->id,
             'order_id'           => $orderId,
-            'type'               => StockMovementType::Sale,
+            'type'               => StockMovementTypeEnum::SALE,
             'quantity_change'    => -$quantity,
             'resulting_quantity' => $product->stock_quantity,
         ]);
@@ -121,12 +121,12 @@ public function restockForCancellation(Order $order): void
             StockMovement::create([
                 'product_id'         => $product->id,
                 'order_id'           => $order->id,
-                'type'               => StockMovementType::Cancel,
+                'type'               => StockMovementTypeEnum::CANCEL,
                 'quantity_change'    => +$item->quantity,
                 'resulting_quantity' => $product->stock_quantity,
             ]);
         }
-        $order->update(['status' => OrderStatus::Cancelled]);
+        $order->update(['status' => OrderStatusEnum::CANCELLED]);
     });
 }
 ```
@@ -137,7 +137,7 @@ public function restockForCancellation(Order $order): void
 
 When a deduction brings a product to or below its threshold, `deductForSale` fires `ProductLowStock`. A **queued** listener notifies admins, so the checkout request is never slowed by sending notifications.
 
-- Admin report endpoint: `GET /api/v1/admin/products/low-stock`.
+- Admins review low-stock products in the **Filament admin panel** (a filtered resource / widget), backed by the same query.
 - Query: `WHERE stock_quantity <= low_stock_threshold` (backed by an index — see [Data Model §4](03-data-model.md#4-constraints--indexes)).
 
 ---
@@ -147,7 +147,7 @@ When a deduction brings a product to or below its threshold, `deductForSale` fir
 This test is the proof that overselling cannot happen. It must exist and pass.
 
 ```php
-final class OverseldingTest extends TestCase
+final class OversellingTest extends TestCase
 {
     use RefreshDatabase;
 
