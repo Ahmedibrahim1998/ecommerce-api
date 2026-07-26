@@ -125,7 +125,7 @@ Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `cast
 - `app/Http/Controllers/Api/V1/Coupon/CouponController.php`, inject `CouponService`.
 - `#[Post(uri: 'cart/apply-coupon', middleware: ['auth:sanctum'])]` → returns `ApiResponse::success(data: new CouponResource(...), message: trans('coupon.api.applied'))`.
 
-**Step 7 — Translations**
+**Step 7 — Message strings**
 - Add keys to `lang/en/coupon.php`.
 
 **Step 8 — Policy / Filament (if admin-managed)**
@@ -137,7 +137,7 @@ Model at `app/Models/Coupon.php` (namespace `App\Models`) with `fillable`, `cast
 
 ## 5. New Feature Checklist
 
-- [ ] Migration + model (+ enum + lang enum if needed)
+- [ ] Migration + model (+ enum + `enum.php` labels if needed)
 - [ ] Repository interface + implementation + binding in `RepositoryServiceProvider`
 - [ ] Service in `App\Services\Api\V1\{Feature}\`
 - [ ] DTO(s) in `App\Http\DTOs\Api\V1\{Feature}\`
