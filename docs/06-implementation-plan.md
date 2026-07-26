@@ -29,7 +29,7 @@ flowchart LR
 ### Milestone 2 — Catalog
 - `categories` (hierarchical) & `products` (+ `product_images`) migrations, models, factories, seeders.
 - Public listing with pagination, search, filtering, sorting; product detail.
-- Admin CRUD for categories & products.
+- Filament admin resources for categories & products (CRUD).
 - **Deliverable:** browse and manage the catalog end-to-end.
 
 ### Milestone 3 — Cart
@@ -44,10 +44,10 @@ flowchart LR
 - **The mandatory [concurrency test](05-inventory-and-concurrency.md#7-the-mandatory-concurrency-test).**
 - **Deliverable:** cart → order with guaranteed no overselling.
 
-### Milestone 5 — Admin
-- Admin order-status transitions.
-- Low-stock report & manual restock/adjustment.
-- **Deliverable:** operators can run the store.
+### Milestone 5 — Admin (Filament)
+- Filament panel + Filament Shield (roles/permissions).
+- Order-status transitions; low-stock view & manual restock/adjustment.
+- **Deliverable:** operators can run the store from the admin panel.
 
 ### Milestone 6 — Polish
 - `payments` + a payment provider interface (stub gateway).
@@ -79,7 +79,7 @@ A feature is "done" only when **all** of the following hold:
 | **Validation** | Validated DTOs per endpoint |
 | **Authorization** | Policies + `can:` middleware |
 | **Errors** | Central handler → consistent JSON envelope + correct status |
-| **Money** | `decimal(12,2)` + `Money` value object |
+| **Money** | `decimal(12,2)` with Eloquent decimal casts |
 | **Concurrency** | `DB::transaction` + `lockForUpdate` at checkout & restock |
 | **Idempotency** | `Idempotency-Key` on `POST /orders` |
 | **Async work** | Redis queue for emails, alerts, low-stock checks |
