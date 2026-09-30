@@ -69,6 +69,8 @@ The engineering handbook for this project. It mirrors the conventions of our exi
 - **Readonly:** Services are `final readonly class` with constructor property promotion.
 - **Docblocks** for `@property` / `@var` / `@return` on models and key classes.
 - **Strict types** where practical.
+- **Config:** read settings with `config('...')`; `env()` only inside `config/*.php`.
+- **No local state:** no `static` per-request data, no files on local disk — see [10 · Twelve-Factor Compliance](10-twelve-factor.md).
 
 ---
 

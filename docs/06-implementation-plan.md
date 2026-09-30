@@ -22,6 +22,7 @@ flowchart LR
 
 ### Milestone 1 — Setup & Auth
 - Laravel project, coding standards (Pint), CI pipeline, base error handling.
+- Twelve-factor groundwork: complete `.env.example`, MySQL + Redis running locally, test database on MySQL.
 - Sanctum; `register`, `login`, `logout`, `me`.
 - `users` + roles; base Policy/Gate wiring.
 - **Deliverable:** a customer can register, log in, and call an authenticated endpoint.
@@ -69,6 +70,7 @@ A feature is "done" only when **all** of the following hold:
 - [ ] Money handled via `decimal(12,2)` casts; no floats.
 - [ ] No N+1 queries on list endpoints (eager loading verified).
 - [ ] Documented in the OpenAPI spec.
+- [ ] Twelve-Factor rules respected — no secrets in code, new env keys in `.env.example`, `config()` not `env()`, no local state (see [10 · Twelve-Factor Compliance](10-twelve-factor.md#pull-request-checklist)).
 
 ---
 
@@ -87,6 +89,10 @@ A feature is "done" only when **all** of the following hold:
 | **Caching** | Cache catalog reads; bust on product/category writes |
 | **Observability** | Structured logs + `stock_movements` audit trail |
 | **Security** | HTTPS, hashed passwords, mass-assignment protection, token scoping |
+| **Config** | Environment variables only; complete `.env.example`; `config()` in code |
+| **Logging** | `stderr` in production; structured event logs; no secrets |
+| **Dev/prod parity** | MySQL 8 + Redis locally; concurrency test on real MySQL, not SQLite |
+| **Operations** | Follows the [Twelve-Factor App](10-twelve-factor.md) methodology |
 
 ---
 

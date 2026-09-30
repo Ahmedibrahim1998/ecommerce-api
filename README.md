@@ -31,6 +31,7 @@ A backend **RESTful API** for an e-commerce store — products, categories, shop
 | 07 | [Tech Stack & Code Style](docs/07-tech-stack-and-code-style.md) | Packages, PSR-12 style, design patterns, file layout |
 | 08 | [Conventions & Scaffolding](docs/08-conventions-and-scaffolding.md) | Namespaces, naming, message strings, **how to add a feature** |
 | 09 | [Integrations](docs/09-integrations.md) | Payment gateway, media/storage, push, API docs |
+| 10 | [Twelve-Factor Compliance](docs/10-twelve-factor.md) | How each of the 12 factors applies here + PR checklist |
 
 An interactive version of the ERD (same 11-entity model) is available at [`docs/ecommerce_data_model_erd.html`](docs/ecommerce_data_model_erd.html) — download and open it in a browser.
 
@@ -205,6 +206,7 @@ Full breakdown, relationship table, and constraints: [Data Model](docs/03-data-m
 | **Idempotency** | Idempotency key on `POST /orders` to prevent duplicate orders |
 | **Soft deletion** | Products & categories hidden via `is_active`, not hard-deleted |
 | **Audit** | Every stock change recorded in `stock_movements` |
+| **Operations** | Follows [The Twelve-Factor App](docs/10-twelve-factor.md) — env config, stateless processes, logs to `stderr` |
 
 See [Inventory & Concurrency](docs/05-inventory-and-concurrency.md) for the deep dive.
 
