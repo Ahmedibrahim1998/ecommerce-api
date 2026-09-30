@@ -20,6 +20,9 @@
 .phpunit.result.cache
 .phpunit.cache
 
+# Local reference material (not part of the repo)
+/twelve-factor-app-guide.pdf
+
 # Editor / OS
 /.idea
 /.vscode
